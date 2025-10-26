@@ -1,1 +1,335 @@
-y
+-- BALLONHUB V11.0 - ABA PETS REMOVIDA
+-- Apenas: Farm Orbs | Rebirth | Lock Position
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- === REMOTES ===
+local rEvents = ReplicatedStorage:WaitForChild("rEvents", 10)
+local orbEvent = rEvents and rEvents:WaitForChild("orbEvent", 10)
+local rebirthEvent = rEvents and rEvents:WaitForChild("rebirthEvent", 10)
+
+if not (orbEvent and rebirthEvent) then
+	warn("Remotes não carregaram. Tentando em 3s...")
+	task.wait(3)
+end
+
+-- === GUI ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BallonHub_GUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 500, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+-- Degradê
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 60, 120)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 220, 255))
+}
+gradient.Rotation = 90
+gradient.Parent = mainFrame
+
+-- Borda
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(0, 255, 255)
+stroke.Thickness = 3
+stroke.Parent = mainFrame
+
+-- Cantos
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 18)
+corner.Parent = mainFrame
+
+-- Título
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -110, 0, 50)
+title.BackgroundTransparency = 1
+title.Text = "BallonHub"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBlack
+title.TextScaled = true
+title.Parent = mainFrame
+
+local titleGrad = Instance.new("UIGradient")
+titleGrad.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 100, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
+}
+titleGrad.Rotation = 45
+titleGrad.Parent = title
+
+-- Botão Minimizar
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 40, 0, 40)
+minimizeBtn.Position = UDim2.new(1, -100, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 220)
+minimizeBtn.Text = "_"
+minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextScaled = true
+minimizeBtn.Parent = mainFrame
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 12)
+minCorner.Parent = minimizeBtn
+
+-- Botão Fechar
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 40, 0, 40)
+closeBtn.Position = UDim2.new(1, -50, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextScaled = true
+closeBtn.Parent = mainFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 12)
+closeCorner.Parent = closeBtn
+
+closeBtn.MouseButton1Click:Connect(function()
+	screenGui:Destroy()
+end)
+
+local isMinimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	mainFrame.Size = isMinimized and UDim2.new(0, 500, 0, 60) or UDim2.new(0, 500, 0, 300)
+end)
+
+-- === ABAS (SÓ FARM ORBS E REBIRTH) ===
+local currentTab = nil
+
+local function createTab(name, posX)
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Size = UDim2.new(0, 120, 0, 40)
+	tabBtn.Position = UDim2.new(0, 15 + (posX * 130), 0, 60)
+	tabBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	tabBtn.BackgroundTransparency = 0.9
+	tabBtn.Text = name
+	tabBtn.TextColor3 = Color3.fromRGB(200, 255, 255)
+	tabBtn.Font = Enum.Font.GothamBold
+	tabBtn.TextScaled = true
+	tabBtn.Parent = mainFrame
+
+	local tabCorner = Instance.new("UICorner")
+	tabCorner.CornerRadius = UDim.new(0, 12)
+	tabCorner.Parent = tabBtn
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.new(1, -30, 1, -130)
+	scroll.Position = UDim2.new(0, 15, 0, 110)
+	scroll.BackgroundTransparency = 1
+	scroll.ScrollBarThickness = 6
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroll.Visible = false
+	scroll.ClipsDescendants = true
+	scroll.Parent = mainFrame
+
+	tabBtn.MouseButton1Click:Connect(function()
+		if currentTab then currentTab.Visible = false end
+		scroll.Visible = true
+		currentTab = scroll
+	end)
+
+	return scroll
+end
+
+-- === FARM ORBS ===
+local farmTab = createTab("Farm Orbs", 0)
+local orbToggles = {}
+local orbTypes = {"Blue Orb", "Orange Orb", "Red Orb", "Yellow Orb", "Infernal Gem"}
+local orbY = 0
+
+for _, orb in ipairs(orbTypes) do
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 0, 50)
+	frame.Position = UDim2.new(0, 0, 0, orbY)
+	frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	frame.BackgroundTransparency = 0.85
+	frame.Parent = farmTab
+
+	local fCorner = Instance.new("UICorner")
+	fCorner.CornerRadius = UDim.new(0, 12)
+	fCorner.Parent = frame
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 300, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "Farm " .. orb
+	label.TextColor3 = Color3.fromRGB(200, 255, 255)
+	label.Font = Enum.Font.Gotham
+	label.TextScaled = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 80, 0, 35)
+	btn.Position = UDim2.new(1, -95, 0, 7.5)
+	btn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	btn.Text = "OFF"
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextScaled = true
+	btn.Parent = frame
+
+	local btnCorner = Instance.new
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 10)
+btnCorner.Parent = btn
+
+	btn.MouseButton1Click:Connect(function()
+		local state = btn.Text == "OFF"
+		btn.Text = state and "ON" or "OFF"
+		btn.BackgroundColor3 = state and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+		orbToggles[orb] = state
+	end)
+
+	orbY = orbY + 60
+end
+farmTab.CanvasSize = UDim2.new(0, 0, 0, orbY)
+
+-- === REBIRTH ===
+local rebirthTab = createTab("Rebirth", 1)
+local rebirthY = 0
+local rebirthActive = false
+local rebirthInput
+
+-- Auto Rebirth Toggle
+local rebirthToggle = Instance.new("Frame")
+rebirthToggle.Size = UDim2.new(1, 0, 0, 50)
+rebirthToggle.Position = UDim2.new(0, 0, 0, rebirthY)
+rebirthToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+rebirthToggle.BackgroundTransparency = 0.85
+rebirthToggle.Parent = rebirthTab
+
+local rtCorner = Instance.new("UICorner")
+rtCorner.CornerRadius = UDim.new(0, 12)
+rtCorner.Parent = rebirthToggle
+
+local rtLabel = Instance.new("TextLabel")
+rtLabel.Size = UDim2.new(0, 300, 1, 0)
+rtLabel.BackgroundTransparency = 1
+rtLabel.Text = "Auto Rebirth"
+rtLabel.TextColor3 = Color3.fromRGB(200, 255, 255)
+rtLabel.Font = Enum.Font.Gotham
+rtLabel.TextScaled = true
+rtLabel.TextXAlignment = Enum.TextXAlignment.Left
+rtLabel.Parent = rebirthToggle
+
+local rtBtn = Instance.new("TextButton")
+rtBtn.Size = UDim2.new(0, 80, 0, 35)
+rtBtn.Position = UDim2.new(1, -95, 0, 7.5)
+rtBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+rtBtn.Text = "OFF"
+rtBtn.TextColor3 = Color3.new(1, 1, 1)
+rtBtn.Font = Enum.Font.GothamBold
+rtBtn.TextScaled = true
+rtBtn.Parent = rebirthToggle
+
+local rtBtnCorner = Instance.new("UICorner")
+rtBtnCorner.CornerRadius = UDim.new(0, 10)
+rtBtnCorner.Parent = rtBtn
+
+rtBtn.MouseButton1Click:Connect(function()
+	rebirthActive = not rebirthActive
+	rtBtn.Text = rebirthActive and "ON" or "OFF"
+	rtBtn.BackgroundColor3 = rebirthActive and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+end)
+
+rebirthY = rebirthY + 60
+
+-- Input
+rebirthInput = Instance.new("TextBox")
+rebirthInput.Size = UDim2.new(1, 0, 0, 40)
+rebirthInput.Position = UDim2.new(0, 0, 0, rebirthY)
+rebirthInput.PlaceholderText = "Rebirths até (ou vazio)"
+rebirthInput.Text = ""
+rebirthInput.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+rebirthInput.BackgroundTransparency = 0.9
+rebirthInput.TextColor3 = Color3.fromRGB(0, 200, 255)
+rebirthInput.Font = Enum.Font.Gotham
+rebirthInput.TextScaled = true
+rebirthInput.Parent = rebirthTab
+
+local riCorner = Instance.new("UICorner")
+riCorner.CornerRadius = UDim.new(0, 12)
+riCorner.Parent = rebirthInput
+
+rebirthY = rebirthY + 50
+
+-- Lock Position
+local lockBtn = Instance.new("TextButton")
+lockBtn.Size = UDim2.new(1, 0, 0, 50)
+lockBtn.Position = UDim2.new(0, 0, 0, rebirthY)
+lockBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+lockBtn.Text = "Lock Position"
+lockBtn.TextColor3 = Color3.new(1, 1, 1)
+lockBtn.Font = Enum.Font.GothamBold
+lockBtn.TextScaled = true
+lockBtn.Parent = rebirthTab
+
+local lockCorner = Instance.new("UICorner")
+lockCorner.CornerRadius = UDim.new(0, 12)
+lockCorner.Parent = lockBtn
+
+local locked = false
+local lockPos = nil
+lockBtn.MouseButton1Click:Connect(function()
+	locked = not locked
+	lockBtn.BackgroundColor3 = locked and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+	if locked and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		lockPos = player.Character.HumanoidRootPart.Position
+	end
+end)
+
+rebirthTab.CanvasSize = UDim2.new(0, 0, 0, rebirthY + 60)
+
+-- === LOOPS ===
+RunService.Heartbeat:Connect(function()
+	-- Farm Orbs
+	for orb, enabled in pairs(orbToggles) do
+		if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			pcall(function()
+				orbEvent:FireServer("collectOrb", orb, "City")
+			end)
+		end
+	end
+
+	-- Lock Position
+	if locked and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		player.Character.HumanoidRootPart.CFrame = CFrame.new(lockPos)
+	end
+end)
+
+task.spawn(function()
+	while task.wait(1) do
+		if rebirthActive and player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Rebirths") then
+			local target = tonumber(rebirthInput.Text) or math.huge
+			if player.leaderstats.Rebirths.Value < target then
+				pcall(function()
+					rebirthEvent:FireServer("rebirthRequest")
+				end)
+			end
+		end
+	end
+end)
+
+print("BALLONHUB V11.0 CARREGADO – SEM ABA PETS | LIMPO E FUNCIONAL!")
